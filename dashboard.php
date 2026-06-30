@@ -2,7 +2,10 @@
 // ============================================================
 //  dashboard.php  –  Main FIREWATCH control dashboard
 // ============================================================
+if (!is_dir('/tmp/sessions')) { mkdir('/tmp/sessions', 0777, true); }
+ini_set('session.save_path', '/tmp/sessions');
 session_start();
+
 require_once __DIR__ . '/config/db.php';
 
 if (!isset($_SESSION['user_id'])) {
@@ -10,7 +13,8 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$db       = getDB();
+// Map database to the unified cloud connection variable object
+$db       = $conn; 
 $userId   = (int) $_SESSION['user_id'];
 $fullname = htmlspecialchars($_SESSION['fullname']);
 
