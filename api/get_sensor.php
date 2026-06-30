@@ -1,8 +1,10 @@
 <?php
 // ============================================================
-//  api/get_sensor.php  –  Dashboard AJAX polling endpoint
-//  Returns latest sensor data + actuator state + recent logs
+//   api/get_sensor.php  –  Dashboard AJAX polling endpoint
+//   Returns latest sensor data + actuator state + recent logs
 // ============================================================
+if (!is_dir('/tmp/sessions')) { mkdir('/tmp/sessions', 0777, true); }
+ini_set('session.save_path', '/tmp/sessions');
 session_start();
 header('Content-Type: application/json');
 
@@ -13,7 +15,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../config/db.php';
-$db = getDB();
+$db = $conn;
 
 // Latest sensor
 $sensor = $db->query(
