@@ -3,7 +3,7 @@
 $host = getenv('MYSQLHOST') ?: '127.0.0.1';
 $user = getenv('MYSQLUSER') ?: 'root';
 $pass = getenv('MYSQLPASSWORD') ?: '';
-$db   = getenv('MYSQLDATABASE') ?: 'firewatch_db1';
+$db   = getenv('MYSQLDATABASE') ?: 'railway'; // Changed fallback from firewatch_db1 to railway
 $port = getenv('MYSQLPORT') ?: '3306';
 
 $conn = new mysqli($host, $user, $pass, $db, $port);
