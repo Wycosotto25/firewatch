@@ -9,5 +9,9 @@ RUN a2enmod rewrite
 # Copy your app code into the container's web root
 COPY . /var/www/html/
 
-# Apache listens on 80 by default; Railway maps this automatically
+# Copy and prepare the startup script that binds Apache to Railway's $PORT
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
 EXPOSE 80
+CMD ["/start.sh"]
