@@ -1,7 +1,9 @@
 <?php
 // ============================================================
-//  api/get_all_logs.php  –  Paginated Historical Logs Engine
+//   api/get_all_logs.php  –  Paginated Historical Logs Engine
 // ============================================================
+if (!is_dir('/tmp/sessions')) { mkdir('/tmp/sessions', 0777, true); }
+ini_set('session.save_path', '/tmp/sessions');
 session_start();
 header('Content-Type: application/json');
 
@@ -12,7 +14,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../config/db.php';
-$db = getDB();
+$db = $conn;
 
 // ── GET Parameters ───────────────────────────────────────────
 $page   = isset($_GET['page'])   ? max(1, (int)$_GET['page'])   : 1;
