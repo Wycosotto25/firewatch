@@ -70,12 +70,9 @@ window.navigateHistoryPage = navigateHistoryPage;
 function openHistoryModal() {
     const modal = document.getElementById('historyLogModal');
     if (modal) {
-        // Remove any conflicting inline display attributes
         modal.style.setProperty('display', 'flex', 'important');
-        // Add the correct visualization class hook
         modal.classList.add('open');
         
-        // Execute your pagination/data retrieval engine
         if (typeof fetchHistoryLogs === 'function') {
             fetchHistoryLogs(1);
         }
@@ -88,7 +85,7 @@ function closeHistoryModal() {
         modal.classList.remove('open');
         setTimeout(() => {
             modal.style.display = 'none';
-        }, 250); // Matches smooth transition curves
+        }, 250);
     }
 }
 
@@ -108,7 +105,10 @@ async function fetchHistoryLogs(page = 1) {
   const url = `api/get_all_logs.php?page=${page}&limit=10&type=${encodeURIComponent(type)}&user=${encodeURIComponent(user)}&from=${from}&to=${to}`;
 
   try {
-    const response = await fetch(url, { cache: 'no-store' });
+    const response = await fetch(url, { 
+      cache: 'no-store',
+      credentials: 'include' // Fixed authentication attachment rule
+    });
     if (!response.ok) throw new Error("Network query invalid.");
     const data = await response.json();
 
@@ -139,22 +139,17 @@ function renderHistoryTable(logs) {
     return;
   }
 
-  // Generate the table HTML structure
   const rowsHtml = logs.map(r => {
-    // 1. Clean the incoming database string
     let typeClean = r.incident_type ? r.incident_type.trim().toLowerCase() : '';
     
-    // 2. Identify structural blanks/normals using the flame sensor logic
     if (typeClean === '' || typeClean === 'normal') {
       typeClean = parseInt(r.flame_detected, 10) === 1 ? 'fire' : 'clear';
     }
     
-    // 3. CORE CHANGE: If the calculated status is 'clear', do not display the data row
     if (typeClean === 'clear') {
       return '';
     }
     
-    // 4. Assign style badge classes for actual incidents (Fire, Emergency, Gas, Temp, Manual)
     let badgeClass = 'badge-secondary';
     if (typeClean === 'fire' || typeClean === 'emergency') badgeClass = 'badge-danger';
     else if (typeClean === 'gas' || typeClean === 'temp') badgeClass = 'badge-warning';
@@ -179,7 +174,6 @@ function renderHistoryTable(logs) {
     `;
   }).join('');
 
-  // 5. Check if all items on this page were filtered out as "clear" rows
   if (rowsHtml.trim() === '') {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:rgba(255,255,255,0.4);">No active system incidents on this data page.</td></tr>`;
   } else {
@@ -199,7 +193,10 @@ async function pollSensors() {
   if (isUpdatingActuator) return; 
 
   try {
-    const res  = await fetch('api/get_sensor.php', { cache: 'no-store' });
+    const res  = await fetch('api/get_sensor.php', { 
+      cache: 'no-store',
+      credentials: 'include' // Fixed authentication attachment rule
+    });
     const data = await res.json();
 
     if (data.error) { setStatus('error', data.error); return; }
@@ -228,10 +225,10 @@ async function pollSensors() {
 }
 
 function setToStaleState() {
-  if (els.valTemp)  els.valTemp.textContent = '--';
-  if (els.valHum)   els.valHum.textContent = '--';
-  if (els.valGas)   els.valGas.textContent = '--';
-  if (els.valFlame) els.valFlame.textContent = 'OFFLINE';
+  if (els.valTemp)   els.valTemp.textContent = '--';
+  if (els.valHum)    els.valHum.textContent = '--';
+  if (els.valGas)    els.valGas.textContent = '--';
+  if (els.valFlame)  els.valFlame.textContent = 'OFFLINE';
   setBadge('normal', '🔌 UNPLUGGED');
 }
 
@@ -363,14 +360,14 @@ function updateLog(logs) {
 
     return `
        <tr>
-         <td>${r.id}</td>
-         <td>${esc(r.fullname)}</td>
-         <td><span class="badge ${badgeClass}">${typeClean.toUpperCase()}</span></td>
-         <td>${tempVal} °C</td>
-         <td>${humVal} %</td>
-         <td>${gasVal} PPM</td>
-         <td>${flameStatus}</td>
-         <td>${r.created_at}</td>
+          <td>${r.id}</td>
+          <td>${esc(r.fullname)}</td>
+          <td><span class="badge ${badgeClass}">${typeClean.toUpperCase()}</span></td>
+          <td>${tempVal} °C</td>
+          <td>${humVal} %</td>
+          <td>${gasVal} PPM</td>
+          <td>${flameStatus}</td>
+          <td>${r.created_at}</td>
        </tr>
     `;
   }).join('');
@@ -396,6 +393,7 @@ function setActuator(type, state) {
   fetch('api/control.php', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // Fixed authentication attachment rule
     body: JSON.stringify({
       action: 'set',
       device: type,
@@ -447,6 +445,7 @@ async function confirmEmergency() {
     const res = await fetch('api/control.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Fixed authentication attachment rule
       body: JSON.stringify({ action: 'emergency', password: password })
     });
     
@@ -480,6 +479,7 @@ async function disableEmergency() {
     const res = await fetch('api/control.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Fixed authentication attachment rule
       body: JSON.stringify({ action: 'reset' })
     });
     const data = await res.json();
@@ -589,6 +589,7 @@ function parseAndSaveSerialData(line) {
       fetch('api/sensor_data.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Fixed authentication attachment rule
         body: JSON.stringify({
           temperature: temp,
           humidity: humid,
@@ -663,7 +664,6 @@ function setupThemeSwitcher() {
     modalCancelBtn.onclick = closeModal;
   }
 
-  // Bind History Log elements inside runtime stack safely
   const historyBtn = document.querySelector("button[onclick='openHistoryModal()']");
   if (historyBtn) {
     historyBtn.removeAttribute("onclick");
