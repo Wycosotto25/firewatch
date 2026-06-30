@@ -1,8 +1,8 @@
 <?php
 // ============================================================
-//  api/control.php
-//  GET  → return current actuator state (Arduino polls this)
-//  POST → update actuator state (dashboard JS calls this)
+//   api/control.php
+//   GET  → return current actuator state (Arduino polls this)
+//   POST → update actuator state (dashboard JS calls this)
 // ============================================================
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -16,7 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/db.php';
 
-$db = getDB();
+// Map database to unified cloud connection object
+$db = $conn;
 
 // ══ GET — Arduino polls for commands ════════════════════════
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -35,6 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 // ══ POST — Dashboard updates actuator state ══════════════════
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!is_dir('/tmp/sessions')) { mkdir('/tmp/sessions', 0777, true); }
+    ini_set('session.save_path', '/tmp/sessions');
     session_start();
 
     $body = file_get_contents('php://input');
