@@ -1,19 +1,16 @@
 <?php
 // ============================================================
-//  login.php  –  Email + password login (Step 1)
+//  login.php  –  Direct Cloud Authentication (No CAPTCHA)
 // ============================================================
-session_start();
 if (!is_dir('/tmp/sessions')) { mkdir('/tmp/sessions', 0777, true); }
 ini_set('session.save_path', '/tmp/sessions');
+session_start();
+
 require_once __DIR__ . '/config/db.php';
 
+// If they are already logged in, send them straight to dashboard
 if (isset($_SESSION['user_id'])) {
     header('Location: dashboard.php');
-    exit;
-}
-
-if (isset($_SESSION['temp_user'])) {
-    header('Location: humanoid.php');
     exit;
 }
 
@@ -24,13 +21,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email    = trim($_POST['email']    ?? '');
     $password = $_POST['password']      ?? '';
 
-    // Basic input check
     if (empty($email) || empty($password)) {
         $error = 'Email and password are required.';
     } 
-    // Authenticate with Database
     else {
-        $db = getDB();
+        // Use unified connection object initialized inside config/db.php
+        $db = $conn; 
         
         // Fetch user from the database
         $stmt = $db->prepare('SELECT id, fullname, password FROM users WHERE email = ?');
@@ -44,14 +40,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Verify password hash matches
             if (password_verify($password, $user['password'])) {
                 
-                // STAGE 1 SUCCESS! Save profile in holding state
-                $_SESSION['temp_user'] = [
-                    'id'       => $user['id'],
-                    'fullname' => $user['fullname']
-                ];
+                // LOGIN SUCCESS! Store full credentials into global tracking session
+                $_SESSION['user_id']  = $user['id'];
+                $_SESSION['fullname'] = $user['fullname'];
                 
-                // Whisk them away to the standalone security check page
-                header('Location: humanoid.php');
+                // Redirect user instantly to dashboard
+                header('Location: dashboard.php');
                 exit;
                 
             } else {
