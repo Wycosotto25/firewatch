@@ -3,6 +3,8 @@
 //  login.php  –  Email + password login (Step 1)
 // ============================================================
 session_start();
+if (!is_dir('/tmp/sessions')) { mkdir('/tmp/sessions', 0777, true); }
+ini_set('session.save_path', '/tmp/sessions');
 require_once __DIR__ . '/config/db.php';
 
 if (isset($_SESSION['user_id'])) {
@@ -77,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="auth-brand">
       <div class="fire-icon-lg">🔥</div>
       <h1 class="brand-title">F.I.R.E.W.A.T.C.H</h1>
-      <p class="brand-sub">Fire Intelligent Response &amp; Emergency Alert System</p>
+      <p class="brand-sub">Do Intelligent Response &amp; Emergency Alert System</p>
     </div>
 
     <h2 class="auth-heading">Sign In</h2>
