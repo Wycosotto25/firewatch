@@ -1,8 +1,10 @@
 <?php
 // ============================================================
-//  api/sensor_data.php
-//  Receives POST from Arduino, stores reading, returns JSON.
+//   api/sensor_data.php
+//   Receives POST from Arduino, stores reading, returns JSON.
 // ============================================================
+if (!is_dir('/tmp/sessions')) { mkdir('/tmp/sessions', 0777, true); }
+ini_set('session.save_path', '/tmp/sessions');
 session_start(); 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -42,7 +44,7 @@ $hum   = (float) $hum;
 $gas   = (int)   $gas;
 $flame = (int)   $flame ? 1 : 0;
 
-$db = getDB();
+$db = $conn;
 
 // ── Store Sensor Reading ──────────────────────────────────────
 $stmt = $db->prepare(
@@ -109,7 +111,6 @@ if ((int)$currentActuator['emergency'] === 1) {
     $isAutomatedTrigger = true;
 } else {
     // ── FIXED Environment is clear ──
-    // If the last registered log was a danger state, register a 'clear' state entry to reset the cycle chain!
     if (in_array($realLastIncidentType, ['fire', 'gas', 'temp', 'emergency'])) {
         $incidentType = 'clear';
     } else {
@@ -138,7 +139,6 @@ if ($isAutomatedTrigger) {
         'manual_override' => 0
     ];
 } else {
-    // Only perform automatic hardware stepdown reset adjustments if manual override tracking is turned off!
     if ((int)$currentActuator['manual_override'] === 0 && (int)$currentActuator['emergency'] === 0 && 
        ((int)$currentActuator['pump'] !== 0 || (int)$currentActuator['buzzer'] !== 0 || (int)$currentActuator['fan'] !== 0)) {
         
@@ -156,11 +156,7 @@ if ($isAutomatedTrigger) {
 }
 
 // ── 🛡️ DATABASE STATE LOGGING CONTROL ENGINE ───────────────────
-// We don't save raw 'clear' states if the last state was already 'clear' to prevent flooding.
-// But transitioning from 'fire' to 'clear' will log successfully, freeing up the next 'fire' event!
 if ($incidentType !== null && $incidentType !== $realLastIncidentType) {
-    
-    // Skip logging a flat 'clear' if it's just repeating baseline records
     if ($incidentType === 'clear' && ($realLastIncidentType === 'clear' || $realLastIncidentType === '')) {
         // Do nothing
     } else {
