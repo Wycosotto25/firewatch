@@ -1,10 +1,12 @@
- <?php
+<?php
 // ============================================================
-//  register.php  –  New-user registration with CAPTCHA
+//  register.php  –  Direct Account Registration (No CAPTCHA)
 // ============================================================
+if (!is_dir('/tmp/sessions')) { mkdir('/tmp/sessions', 0777, true); }
+ini_set('session.save_path', '/tmp/sessions');
 session_start();
+
 require_once __DIR__ . '/config/db.php';
-require_once __DIR__ . '/captcha/captcha.php';
 
 if (isset($_SESSION['user_id'])) {
     header('Location: dashboard.php');
@@ -14,11 +16,6 @@ if (isset($_SESSION['user_id'])) {
 $error   = '';
 $success = '';
 
-// ── Generate CAPTCHA for GET or after failure ────────────────
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !empty($error)) {
-    $captchaQuestion = captcha_generate('reg');
-}
-
 // ── Handle POST ──────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -26,32 +23,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email     = trim($_POST['email']     ?? '');
     $password  = $_POST['password']       ?? '';
     $password2 = $_POST['password2']      ?? '';
-    $captchaIn = trim($_POST['captcha']   ?? '');
 
-    // — Validate CAPTCHA first —
-    if (!captcha_validate('reg', $captchaIn)) {
-        $error = 'Incorrect CAPTCHA answer. Please try again.';
-        $captchaQuestion = captcha_generate('reg');
-    }
     // — Basic field validation —
-    elseif (empty($fullname) || empty($email) || empty($password)) {
+    if (empty($fullname) || empty($email) || empty($password)) {
         $error = 'All fields are required.';
-        $captchaQuestion = captcha_generate('reg');
     }
     elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'Please enter a valid email address.';
-        $captchaQuestion = captcha_generate('reg');
     }
     elseif (strlen($password) < 6) {
         $error = 'Password must be at least 6 characters.';
-        $captchaQuestion = captcha_generate('reg');
     }
     elseif ($password !== $password2) {
         $error = 'Passwords do not match.';
-        $captchaQuestion = captcha_generate('reg');
     }
     else {
-        $db = getDB();
+        // Use global connection initialized inside config/db.php
+        $db = $conn;
 
         // Check duplicate email
         $stmt = $db->prepare('SELECT id FROM users WHERE email = ?');
@@ -61,7 +49,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($stmt->num_rows > 0) {
             $error = 'An account with that email already exists.';
-            $captchaQuestion = captcha_generate('reg');
         } else {
             $hash = password_hash($password, PASSWORD_BCRYPT);
             $ins  = $db->prepare(
@@ -71,12 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($ins->execute()) {
                 $success = 'Account created! You can now log in.';
-                $captchaQuestion = captcha_generate('reg');
             } else {
                 $error = 'Registration failed. Please try again.';
-                $captchaQuestion = captcha_generate('reg');
             }
+            $ins->close();
         }
+        $stmt->close();
     }
 }
 ?>
@@ -93,7 +80,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="auth-body">
 
   <div class="auth-card">
-    <!-- Logo / Brand -->
     <div class="auth-brand">
       <div class="fire-icon-lg">🔥</div>
       <h1 class="brand-title">F.I.R.E.W.A.T.C.H</h1>
@@ -135,15 +121,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="password2">Confirm Password</label>
         <input type="password" id="password2" name="password2"
                placeholder="••••••••" required>
-      </div>
-
-      <!-- CAPTCHA -->
-      <div class="form-group captcha-group">
-        <label>Security Check</label>
-        <div class="captcha-box">
-          <span class="captcha-question"><?= htmlspecialchars($captchaQuestion) ?></span>
-        </div>
-        <input type="number" name="captcha" placeholder="Enter answer" required>
       </div>
 
       <button type="submit" class="btn btn-primary btn-full">Create Account</button>
