@@ -110,12 +110,8 @@ if ((int)$currentActuator['emergency'] === 1) {
     $forcedFan          = 1;
     $isAutomatedTrigger = true;
 } else {
-    // ── FIXED Environment is clear ──
-    if (in_array($realLastIncidentType, ['fire', 'gas', 'temp', 'emergency'])) {
-        $incidentType = 'clear';
-    } else {
-        $incidentType = 'clear'; // Keeps it clear default state
-    }
+    // ── Environment is clear ──
+    $incidentType = 'clear';
 }
 
 // ── Web Actuator Synchronization Hub ──────────────────────────
@@ -156,9 +152,21 @@ if ($isAutomatedTrigger) {
 }
 
 // ── 🛡️ DATABASE STATE LOGGING CONTROL ENGINE ───────────────────
+// NOTE: wrapped in try/catch. This INSERT is what was crashing the
+// whole endpoint with a 500 error — the 'incident_type' column was
+// rejecting the value 'clear' (truncation error under mysqli strict
+// mode). The real fix is the database column itself: see
+// fix_incident_type_column.sql, which widens incident_type to
+// VARCHAR(20) so every value this script writes ('fire', 'gas',
+// 'temp', 'manual', 'emergency', 'clear') fits.
+//
+// This try/catch is a second layer of defense on top of that fix:
+// even if some future incident_type value doesn't fit the column,
+// the sensor reading already stored above will still succeed, and
+// the response below will still return valid JSON instead of a 500.
 if ($incidentType !== null && $incidentType !== $realLastIncidentType) {
     if ($incidentType === 'clear' && ($realLastIncidentType === 'clear' || $realLastIncidentType === '')) {
-        // Do nothing
+        // Do nothing — no need to log a redundant "still clear" entry.
     } else {
         $userId = 1; 
         if (isset($_SESSION['user_id'])) {
@@ -168,12 +176,21 @@ if ($incidentType !== null && $incidentType !== $realLastIncidentType) {
             if ($userCheck) { $userId = (int) $userCheck['id']; }
         }
 
-        $ins = $db->prepare(
-            'INSERT INTO incidents (user_id, incident_type, temperature, humidity, gas_level, flame_detected)
-             VALUES (?, ?, ?, ?, ?, ?)'
-        );
-        $ins->bind_param('isddii', $userId, $incidentType, $temp, $hum, $gas, $flame);
-        $ins->execute();
+        try {
+            $ins = $db->prepare(
+                'INSERT INTO incidents (user_id, incident_type, temperature, humidity, gas_level, flame_detected)
+                 VALUES (?, ?, ?, ?, ?, ?)'
+            );
+            $ins->bind_param('isddii', $userId, $incidentType, $temp, $hum, $gas, $flame);
+            $ins->execute();
+        } catch (mysqli_sql_exception $e) {
+            // Log the failure but do not let it take down the whole
+            // request — the sensor reading was already saved above,
+            // and the dashboard still needs valid JSON back.
+            error_log(
+                'Failed to log incident (type=' . $incidentType . '): ' . $e->getMessage()
+            );
+        }
     }
 }
 
